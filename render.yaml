@@ -10,7 +10,10 @@ services:
     name: ai-leads-api
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
+    # --include=dev is required: NODE_ENV is production here, which otherwise
+    # makes npm skip devDependencies — including TypeScript, so the build fails
+    # with "tsc: not found". Only dist/ is needed at runtime.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/v1/health
     envVars:

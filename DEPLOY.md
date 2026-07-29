@@ -31,7 +31,7 @@ New → **Web Service** → connect the repository.
 | Setting | Value |
 |---|---|
 | Runtime | Node |
-| Build command | `npm ci && npm run build` |
+| Build command | `npm ci --include=dev && npm run build` |
 | Start command | `npm start` |
 | Health check path | `/api/v1/health` |
 | Plan | Free (see the keep-awake note below) |
