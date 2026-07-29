@@ -1,0 +1,45 @@
+# Render blueprint for the backend API.
+#
+# The free plan sleeps after ~15 minutes without an inbound request, and a
+# sleeping service runs no cron jobs. Point a free external pinger (cron-job.org,
+# UptimeRobot) at /api/v1/health every 10 minutes to keep the scheduler alive.
+# Nothing is lost during downtime — approved mail is sent once the service wakes
+# and the IMAP poll looks back 14 days — but sends are delayed.
+services:
+  - type: web
+    name: ai-leads-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: /api/v1
+      # Every secret below is set in the Render dashboard, never committed.
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: UNSUBSCRIBE_SECRET
+        generateValue: true
+      # Must be the public Render URL, or unsubscribe links in sent mail break.
+      - key: PUBLIC_BASE_URL
+        sync: false
+      # The deployed Netlify origin, for CORS.
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: IMAP_USER
+        sync: false
+      - key: IMAP_PASSWORD
+        sync: false

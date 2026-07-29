@@ -1,0 +1,80 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API",
+  "elements": [
+    {
+      "type": "node",
+      "id": 1000000001,
+      "lat": 53.4808,
+      "lon": -2.2426,
+      "tags": {
+        "name": "Corner Cut Barbers",
+        "shop": "hairdresser",
+        "website": "cornercutbarbers.co.uk",
+        "phone": "+44 161 000 0001",
+        "addr:housenumber": "12",
+        "addr:street": "Oldham Street",
+        "addr:city": "Manchester",
+        "addr:postcode": "M1 1JN"
+      }
+    },
+    {
+      "type": "way",
+      "id": 2000000002,
+      "center": { "lat": 53.4795, "lon": -2.2451 },
+      "tags": {
+        "name": "Riverbend Bistro",
+        "amenity": "restaurant",
+        "contact:website": "https://riverbendbistro.co.uk",
+        "contact:email": "bookings@riverbendbistro.co.uk",
+        "addr:street": "Deansgate",
+        "addr:city": "Manchester"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1000000003,
+      "lat": 53.4771,
+      "lon": -2.2405,
+      "tags": {
+        "name": "Halcyon Dental Practice",
+        "amenity": "dentist",
+        "email": "reception@halcyondental.co.uk",
+        "addr:street": "Portland Street",
+        "addr:city": "Manchester"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1000000004,
+      "lat": 53.4762,
+      "lon": -2.2398,
+      "tags": {
+        "name": "No Contact Cafe",
+        "amenity": "cafe",
+        "addr:city": "Manchester"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1000000005,
+      "lat": 53.4755,
+      "lon": -2.239,
+      "tags": {
+        "shop": "bakery",
+        "website": "https://unnamedbakery.co.uk"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1000000006,
+      "lat": 53.4744,
+      "lon": -2.2381,
+      "tags": {
+        "name": "Spam Signals Ltd",
+        "office": "accountant",
+        "email": "noreply@spamsignals.co.uk"
+      }
+    }
+  ]
+}

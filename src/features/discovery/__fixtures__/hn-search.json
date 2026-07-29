@@ -1,0 +1,46 @@
+{
+  "hits": [
+    {
+      "objectID": "40100001",
+      "created_at": "2026-07-28T09:15:00.000Z",
+      "author": "buildco_dave",
+      "story_title": "Ask HN: Freelancer? Seeking freelancer? (July 2026)",
+      "comment_text": "SEEKING FREELANCER | Remote | Contract<p>We&#x27;re a small B2B SaaS company and we need a <i>full stack</i> developer to rebuild our customer dashboard in React and Node.js. The current app is a jQuery codebase from 2016 and it&#x27;s slowing the whole team down.<p>Budget is $8,000 for the first phase, with ongoing monthly work after that if it goes well.<p>Email me at dave@buildcoapp.com or see https://buildcoapp.com"
+    },
+    {
+      "objectID": "40100002",
+      "created_at": "2026-07-28T07:40:00.000Z",
+      "author": "marta_films",
+      "story_title": "Ask HN: Freelancer? Seeking freelancer? (July 2026)",
+      "comment_text": "SEEKING FREELANCER | Remote<p>Looking for a video editor for our weekly YouTube channel. We publish two long-form videos and about eight shorts every week. Premiere Pro and After Effects required, motion graphics a big plus.<p>This is a long term retainer, roughly $2,500/month.<p>Reach out: hello@martafilms.tv"
+    },
+    {
+      "objectID": "40100003",
+      "created_at": "2026-07-27T18:05:00.000Z",
+      "author": "greenleaf_ops",
+      "story_title": "Ask HN: Freelancer? Seeking freelancer? (July 2026)",
+      "comment_text": "SEEKING FREELANCER | Berlin or Remote<p>We need a web developer to build a new marketing website. Currently on a very dated WordPress theme that isn&#x27;t mobile friendly at all. Want something fast and modern, ideally Next.js.<p>Budget $5k. Contact: contact@greenleaf.de"
+    },
+    {
+      "objectID": "40100004",
+      "created_at": "2026-07-28T10:20:00.000Z",
+      "author": "sam_dev",
+      "story_title": "Ask HN: Freelancer? Seeking freelancer? (July 2026)",
+      "comment_text": "SEEKING WORK | Remote | Senior React developer<p>I am available for hire. Ten years of web development experience, specialising in React and TypeScript. Portfolio at https://samdev.example.com"
+    },
+    {
+      "objectID": "40100005",
+      "created_at": "2026-07-26T11:00:00.000Z",
+      "author": "cryptostartup9",
+      "story_title": "Ask HN: Freelancer? Seeking freelancer? (July 2026)",
+      "comment_text": "SEEKING FREELANCER | Remote<p>Looking for a full stack developer to build our web app. Equity only for now, huge upside potential once we raise our seed round."
+    },
+    {
+      "objectID": "40100006",
+      "created_at": "2026-07-25T14:30:00.000Z",
+      "author": "quietbakery",
+      "story_title": "Ask HN: Freelancer? Seeking freelancer? (July 2026)",
+      "comment_text": "SEEKING FREELANCER | Remote<p>Need someone to build a small landing page for our bakery, plus edit a couple of short promo videos for Instagram reels. Small budget, around $900 total. Email owner@quietbakery.co.uk"
+    }
+  ]
+}

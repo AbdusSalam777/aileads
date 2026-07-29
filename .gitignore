@@ -1,0 +1,15 @@
+# This file matters: when backend/ is pushed as its own repository the root
+# .gitignore does not travel with it, and .env holds live database, AI and
+# mailbox credentials.
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

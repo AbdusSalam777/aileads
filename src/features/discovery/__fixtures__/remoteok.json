@@ -1,0 +1,47 @@
+[
+  {
+    "legal": "Data from RemoteOK.com. Attribution required if you use this feed."
+  },
+  {
+    "id": "1000001",
+    "slug": "northwind-labs-senior-frontend-developer",
+    "company": "Northwind Labs",
+    "position": "Contract Frontend Developer (React)",
+    "description": "<p>We are hiring a contract frontend developer to help rebuild our customer portal in React and TypeScript. Expect a 3 month engagement with the option to extend. Reach out to jobs@northwindlabs.io</p>",
+    "tags": ["react", "typescript", "frontend", "contract"],
+    "date": "2026-07-28T08:00:00+00:00",
+    "url": "https://remoteok.com/remote-jobs/1000001",
+    "apply_url": "https://remoteok.com/remote-jobs/1000001",
+    "location": "Worldwide",
+    "salary_min": 60000,
+    "salary_max": 90000
+  },
+  {
+    "id": "1000002",
+    "slug": "pixelforge-video-editor",
+    "company": "Pixelforge Media",
+    "position": "Freelance Video Editor",
+    "description": "<p>Looking for a freelance video editor for ongoing YouTube and social content. Must know Premiere Pro and After Effects. Long term retainer available.</p>",
+    "tags": ["video editing", "premiere pro", "after effects"],
+    "date": "2026-07-27T15:30:00+00:00",
+    "url": "https://remoteok.com/remote-jobs/1000002",
+    "apply_url": "https://remoteok.com/remote-jobs/1000002",
+    "location": "Worldwide",
+    "salary_min": 30000,
+    "salary_max": 45000
+  },
+  {
+    "id": "1000003",
+    "slug": "acme-accounting-payroll-clerk",
+    "company": "Acme Accounting",
+    "position": "Payroll Clerk",
+    "description": "<p>Full time payroll clerk needed for our accounting practice. Experience with Sage required.</p>",
+    "tags": ["accounting", "payroll"],
+    "date": "2026-07-26T09:00:00+00:00",
+    "url": "https://remoteok.com/remote-jobs/1000003",
+    "apply_url": "https://remoteok.com/remote-jobs/1000003",
+    "location": "United Kingdom",
+    "salary_min": 28000,
+    "salary_max": 32000
+  }
+]

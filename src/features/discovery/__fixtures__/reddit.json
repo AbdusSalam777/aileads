@@ -1,0 +1,42 @@
+{
+  "data": {
+    "children": [
+      {
+        "data": {
+          "id": "rd10001",
+          "title": "[Hiring] Web developer to rebuild our small business website",
+          "selftext": "We run a two-person landscaping business and our website is ancient and not mobile friendly. Looking for a web developer to rebuild it. Budget around $1,500. Please email quotes to owner@northgardens.co",
+          "author": "northgardens",
+          "permalink": "/r/forhire/comments/rd10001/hiring_web_developer/",
+          "created_utc": 1785209400,
+          "link_flair_text": "Hiring",
+          "subreddit": "forhire"
+        }
+      },
+      {
+        "data": {
+          "id": "rd10002",
+          "title": "[Hiring] Video editor for weekly podcast clips",
+          "selftext": "Need a video editor to cut our weekly podcast into shorts. Ongoing work, roughly 8 clips per week. DM me if interested.",
+          "author": "podcasthost22",
+          "permalink": "/r/VideoEditingRequests/comments/rd10002/hiring_video_editor/",
+          "created_utc": 1785205800,
+          "link_flair_text": "Hiring",
+          "subreddit": "VideoEditingRequests"
+        }
+      },
+      {
+        "data": {
+          "id": "rd10003",
+          "title": "[For Hire] Experienced React developer available",
+          "selftext": "I am a React developer seeking work. Available for hire immediately.",
+          "author": "devforhire",
+          "permalink": "/r/forhire/comments/rd10003/for_hire_react/",
+          "created_utc": 1785202200,
+          "link_flair_text": "For Hire",
+          "subreddit": "forhire"
+        }
+      }
+    ]
+  }
+}
