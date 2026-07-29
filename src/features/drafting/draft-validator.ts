@@ -40,6 +40,29 @@ const MIN_BODY_WORDS = 40;
 const MAX_BODY_WORDS = 260;
 const MAX_SUBJECT_LENGTH = 90;
 
+/**
+ * Openers that describe the sender rather than the recipient. A cold email that
+ * starts by pitching reads as a mass mailout no matter how good the rest is, so
+ * this is enforced rather than left to the model.
+ */
+const SELF_PITCH_OPENERS = [
+  /^i\s+(build|am|help|specialise|specialize|create|design|develop|work|offer|provide|run)\b/i,
+  /^my\s+(name|company|agency|team)\b/i,
+  /^we\s+(build|are|help|offer|provide|specialise|specialize)\b/i,
+  /^(hope|trust)\s+(this|you)\b/i,
+];
+
+/** Empty flattery that signals a template and gives the reader no reason to reply. */
+const FLATTERY = [
+  'rich history',
+  'great way to engage',
+  'love what you',
+  'enhance your online presence',
+  'i hope this email finds you well',
+  'impressive work',
+  'passion for',
+];
+
 /** Subjects that carry no information about the specific recipient. */
 const GENERIC_SUBJECTS = new Set([
   'website update',
@@ -78,6 +101,31 @@ export const validateDraft = (draft: DraftInput): DraftIssue[] => {
   const issues: DraftIssue[] = [];
   const subject = draft.subject.trim();
   const body = draft.body.trim();
+
+  // The first real line after the greeting is what decides whether this reads
+  // as personal or as a mass mailout.
+  const firstContentLine = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0 && !/^(hi|hello|hey)\b[,!]?$/i.test(line) && !/^hi\s+\w+[,!]?$/i.test(line));
+
+  if (firstContentLine && SELF_PITCH_OPENERS.some((re) => re.test(firstContentLine))) {
+    issues.push({
+      code: 'OPENS_WITH_SELF_PITCH',
+      message: `Opens by describing the sender ("${firstContentLine.slice(0, 40)}…") instead of what was noticed about the recipient`,
+      severity: 'error',
+    });
+  }
+
+  const flattery = FLATTERY.filter((phrase) => body.toLowerCase().includes(phrase));
+
+  if (flattery.length > 0) {
+    issues.push({
+      code: 'EMPTY_FLATTERY',
+      message: `Contains hollow flattery: ${flattery.join(', ')}`,
+      severity: 'error',
+    });
+  }
 
   if (subject.length < 3) {
     issues.push({ code: 'SUBJECT_TOO_SHORT', message: 'Subject is empty or too short', severity: 'error' });

@@ -136,3 +136,54 @@ describe('generic subject rejection', () => {
     expect(issues.some((i) => i.code === 'SUBJECT_TOO_GENERIC')).toBe(false);
   });
 });
+
+describe('personalisation enforcement', () => {
+  const goodBody =
+    'Hi,\n\nYour booking form does not work on a phone - the submit button sits off the edge of the screen. Most people looking for a restaurant are on their phone.\n\nI build sites for small businesses, and this is usually a half-day fix.\n\nWant me to send a screenshot?';
+
+  it('rejects an email that opens by pitching the sender', () => {
+    // This is exactly what Groq produced for all three real leads.
+    const issues = validateDraft({
+      subject: 'armenian taverna site',
+      body: 'Hi,\n\nI build and rebuild fast, mobile-friendly websites for small businesses and agencies. Are you open to discussing a website update?',
+    });
+
+    expect(issues.some((i) => i.code === 'OPENS_WITH_SELF_PITCH')).toBe(true);
+    expect(hasBlockingIssue(issues)).toBe(true);
+  });
+
+  it('catches the other self-describing openers', () => {
+    for (const opener of ['We build websites for restaurants.', 'My agency helps small businesses.', 'I am a freelance developer.']) {
+      const issues = validateDraft({ subject: 'the y club booking form', body: `Hi,\n\n${opener}` });
+
+      expect(issues.some((i) => i.code === 'OPENS_WITH_SELF_PITCH')).toBe(true);
+    }
+  });
+
+  it('rejects hollow flattery', () => {
+    const issues = validateDraft({
+      subject: 'armenian taverna site',
+      body: 'Hi,\n\nYour restaurant has a rich history in Manchester and I would love to enhance your online presence.',
+    });
+
+    expect(issues.some((i) => i.code === 'EMPTY_FLATTERY')).toBe(true);
+  });
+
+  it('accepts an email that leads with a concrete observation', () => {
+    const issues = validateDraft({ subject: "khandoker's curry club page", body: goodBody });
+
+    expect(issues.some((i) => i.code === 'OPENS_WITH_SELF_PITCH')).toBe(false);
+    expect(issues.some((i) => i.code === 'EMPTY_FLATTERY')).toBe(false);
+    expect(hasBlockingIssue(issues)).toBe(false);
+  });
+
+  it('does not mistake the greeting line for the opener', () => {
+    // "Hi Sarah," must be skipped so the real first sentence is judged.
+    const issues = validateDraft({
+      subject: 'the y club booking form',
+      body: 'Hi Sarah,\n\nYour footer still shows 2017, which makes the site look abandoned.',
+    });
+
+    expect(issues.some((i) => i.code === 'OPENS_WITH_SELF_PITCH')).toBe(false);
+  });
+});

@@ -6,6 +6,7 @@ import { LeadModel } from '../leads/lead.model.js';
 import { applyStatus, cancelPendingMessages } from '../leads/lead.service.js';
 import { classifyIncoming, type IncomingHeaders } from './reply-detector.js';
 import { extractReplyText } from './reply-text.js';
+import { parseRawHeaders } from './header-parse.js';
 
 export type ReplyPollStats = {
   scanned: number;
@@ -37,10 +38,7 @@ export const isReplyDetectionHealthy = (): boolean => {
 
 export const getLastPollAt = () => lastSuccessfulPollAt;
 
-const headerValue = (headers: Map<string, string[] | string> | undefined, key: string) => {
-  const value = headers?.get(key);
-  return Array.isArray(value) ? value[0] : value;
-};
+const headerValue = (headers: Map<string, string>, key: string) => headers.get(key);
 
 const handleReply = async (
   email: string,
@@ -148,14 +146,16 @@ export const inboxService = {
         )) {
           stats.scanned += 1;
 
+          const parsedHeaders = parseRawHeaders(message.headers);
+
           const headers: IncomingHeaders = {
             from: message.envelope?.from?.[0]?.address
               ? `${message.envelope.from[0].name ?? ''} <${message.envelope.from[0].address}>`
               : undefined,
             subject: message.envelope?.subject,
-            autoSubmitted: headerValue(message.headers as never, 'auto-submitted'),
-            precedence: headerValue(message.headers as never, 'precedence'),
-            returnPath: headerValue(message.headers as never, 'return-path'),
+            autoSubmitted: headerValue(parsedHeaders, 'auto-submitted'),
+            precedence: headerValue(parsedHeaders, 'precedence'),
+            returnPath: headerValue(parsedHeaders, 'return-path'),
           };
 
           const classification = classifyIncoming(headers, message.envelope?.subject ?? '');
