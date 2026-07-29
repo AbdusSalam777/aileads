@@ -3,6 +3,8 @@ export type OverpassTargeting = {
   categories: string[];
   maxResults: number;
   timeoutSeconds?: number;
+  /** Kept for API symmetry; geographic filtering happens after parsing. */
+  countryCode?: string;
 };
 
 /** Friendly words the operator is likely to type, mapped to real OSM tags. */

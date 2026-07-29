@@ -20,6 +20,8 @@ export type SenderIdentity = {
 export type OsmTargeting = {
   areas: string[];
   categories: string[];
+  /** ISO 3166-1 code the areas must sit within, e.g. "GB". Place names repeat worldwide. */
+  countryCode?: string;
 };
 
 export type SendingConfig = {
@@ -101,6 +103,7 @@ const osmTargetingSchema = new Schema<OsmTargeting>(
   {
     areas: { type: [String], default: [] },
     categories: { type: [String], default: [] },
+    countryCode: { type: String, trim: true, uppercase: true, maxlength: 2 },
   },
   { _id: false },
 );

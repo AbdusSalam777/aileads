@@ -1,4 +1,5 @@
 import { isJunkEmail } from '../../enrichment/email-extract.js';
+import { isWithinCountry } from './country-bounds.js';
 import type { LeadCandidate } from '../source.types.js';
 
 export type OverpassElement = {
@@ -44,7 +45,10 @@ const buildLocation = (tags: Record<string, string>): string | undefined => {
   return parts.length > 0 ? parts.join(', ') : undefined;
 };
 
-export const parseOverpassResponse = (response: OverpassResponse): LeadCandidate[] => {
+export const parseOverpassResponse = (
+  response: OverpassResponse,
+  countryCode?: string,
+): LeadCandidate[] => {
   const elements = response.elements ?? [];
   const candidates: LeadCandidate[] = [];
 
@@ -53,6 +57,13 @@ export const parseOverpassResponse = (response: OverpassResponse): LeadCandidate
     const name = tags.name?.trim();
 
     if (!name || !element.id || !element.type) {
+      continue;
+    }
+
+    // Ways and relations carry their position under `center`, nodes at the top level.
+    const coords = element.center ?? { lat: element.lat, lon: element.lon };
+
+    if (!isWithinCountry(coords, countryCode)) {
       continue;
     }
 

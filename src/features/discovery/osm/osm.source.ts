@@ -6,6 +6,7 @@ import { sleep } from '../../../shared/sleep.js';
 import type { CampaignDocument } from '../../campaigns/campaign.model.js';
 import { loadFixture } from '../fixtures.js';
 import type { DiscoverySource, LeadCandidate } from '../source.types.js';
+import { rotateAreas } from './area-rotation.js';
 import { buildOverpassQuery } from './overpass.query.js';
 import { parseOverpassResponse, type OverpassResponse } from './overpass.parse.js';
 
@@ -73,7 +74,9 @@ export const osmSource: DiscoverySource = {
     // whole run down with it.
     const candidates: LeadCandidate[] = [];
 
-    for (const area of areas) {
+    // Rotate the starting area daily. Without this the loop always drains the
+    // first city and the rest of the list is never reached.
+    for (const area of rotateAreas(areas)) {
       if (candidates.length >= limit) {
         break;
       }
@@ -84,6 +87,7 @@ export const osmSource: DiscoverySource = {
         query = buildOverpassQuery({
           areas: [area],
           categories,
+          countryCode: campaign.osmTargeting.countryCode,
           maxResults: Math.min(env.OVERPASS_MAX_RESULTS, Math.max(limit * 2, 50)),
           timeoutSeconds: Math.floor(env.OVERPASS_TIMEOUT_MS / 1000),
         });
@@ -95,7 +99,7 @@ export const osmSource: DiscoverySource = {
       const response = await requestOverpass(query);
 
       if (response) {
-        candidates.push(...parseOverpassResponse(response));
+        candidates.push(...parseOverpassResponse(response, campaign.osmTargeting.countryCode));
       } else {
         logger.warn({ area }, 'Overpass returned nothing for area');
       }
