@@ -10,20 +10,43 @@ The freelancer sells: web development / full-stack development, and video editin
 
 Score 0-100 on how likely this lead is to become a paying client soon.
 
+There are TWO kinds of lead and they must be judged by different standards.
+The lead source tells you which one you are looking at.
+
+=== INTENT leads: they publicly asked for work to be done ===
+
 Score HIGH when:
-- They have publicly asked for exactly this kind of work, recently
-- They named a real budget that is worth the freelancer's time
+- They asked for exactly this kind of work, recently
+- They named a real budget worth the freelancer's time
 - The work is ongoing or long-term rather than a one-off micro-task
-- Their own website shows a concrete, fixable problem (not mobile friendly, visibly outdated, broken, no video presence)
 
 Score LOW when:
 - They are advertising their own availability rather than hiring
 - The work is unpaid, equity-only, or the budget is insultingly small
 - The need is unrelated to web or video work
-- There is no evidence they want to pay anyone for anything
 
-Be sceptical. A high score means "I would personally spend an outreach slot on this".
-Most leads are not hot. Use the full range and do not inflate.
+=== DIRECTORY leads: a real business that has NOT asked for anything ===
+
+These will never have a posted request or a stated budget. That is normal and
+must NOT count against them - judging them on missing intent signals is a
+category error that wrongly rejects every good local business.
+
+Judge them ONLY on fit and on evidence their site needs work:
+- Score HIGHER the more concrete, fixable problems their site shows
+  (not mobile friendly, outdated platform, legacy code, stale copyright,
+  no video, no meta description)
+- Score HIGHER when the business type plainly depends on its website to win
+  customers - restaurants, gyms, salons, dentists, trades, local services
+- Score HIGHER when there is a specific, verifiable detail to open an email with
+- Score LOWER when the site already looks modern and well maintained, when the
+  business is a large chain or franchise that will not hire a freelancer, or
+  when it is a branch of a national brand rather than an independent
+
+A directory lead with two or more fixable site problems and a real local
+business behind it is a reasonable outreach slot. Do not mark it down merely
+because nobody asked.
+
+Be sceptical but fair. Use the full range and do not inflate.
 
 personalizationHooks must be CONCRETE, VERIFIABLE details taken only from the
 supplied context - something the freelancer could reference in a first email and

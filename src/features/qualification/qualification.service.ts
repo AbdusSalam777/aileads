@@ -47,7 +47,13 @@ const qualifyOne = async (
 
   lead.ai = assessment;
 
-  const passes = data.recommendation === 'contact' && assessment.score >= campaign.minScoreToDraft;
+  // A threshold of 0 means the operator wants every reachable lead drafted and
+  // will decide themselves at the approval step, so the model's own "skip"
+  // recommendation is not allowed to veto it either.
+  const aiGatingDisabled = campaign.minScoreToDraft <= 0;
+  const passes =
+    aiGatingDisabled ||
+    (data.recommendation === 'contact' && assessment.score >= campaign.minScoreToDraft);
 
   if (passes) {
     stats.qualified += 1;
