@@ -134,42 +134,6 @@ export const outreachService = {
     return message;
   },
 
-  /**
-   * Marks a draft ready for outreach. There is no send queue any more — this
-   * is purely curation, so the lead can be told apart from the ones still
-   * awaiting a decision when it is exported.
-   */
-  async approve(id: string, ownerId: string) {
-    const message = await findOwnedMessage(id, ownerId);
-
-    if (message.status !== 'draft') {
-      throw new ApiError(409, 'Only drafts can be approved', 'MESSAGE_NOT_APPROVABLE');
-    }
-
-    if (await suppressionService.isSuppressed(message.toEmail)) {
-      throw new ApiError(409, 'Recipient is on the suppression list', 'RECIPIENT_SUPPRESSED');
-    }
-
-    message.status = 'approved';
-    message.approvedAt = new Date();
-    message.approvedBy = new Types.ObjectId(ownerId);
-    await message.save();
-
-    // Records the operator's intent to reach out now, even though the actual
-    // send happens outside this app — this is what keeps reply detection and
-    // the "contacted" stage of the funnel meaningful.
-    const lead = await LeadModel.findById(message.leadId);
-
-    if (lead && lead.status === 'drafting') {
-      lead.sequenceStep += 1;
-      lead.lastContactedAt = new Date();
-      await applyStatus(lead, 'contacted', 'approved for export');
-      await lead.save();
-    }
-
-    return message;
-  },
-
   async discard(id: string, ownerId: string, reason?: string) {
     const message = await findOwnedMessage(id, ownerId);
 
@@ -232,5 +196,65 @@ export const outreachService = {
         ),
       )
       .sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
+  },
+
+  /**
+   * The one-button flow: exports every current draft and, in the same pass,
+   * marks each one done — no per-lead approval step. A draft whose recipient
+   * is suppressed is cancelled instead of exported, silently, so a bad
+   * address never leaves this app.
+   */
+  async exportDraftsAndClear(ownerId: string): Promise<ExportedLead[]> {
+    const campaignIds = await ownedCampaignIds(ownerId);
+    const campaigns = await CampaignModel.find({ _id: { $in: campaignIds } });
+    const campaignMap = new Map(campaigns.map((campaign) => [String(campaign._id), campaign]));
+
+    const drafts = await OutreachMessageModel.find({
+      campaignId: { $in: campaignIds },
+      status: 'draft',
+    });
+
+    const leads = await LeadModel.find({ _id: { $in: drafts.map((draft) => draft.leadId) } });
+    const leadMap = new Map(leads.map((lead) => [String(lead._id), lead]));
+
+    const exported: ExportedLead[] = [];
+
+    for (const message of drafts) {
+      if (await suppressionService.isSuppressed(message.toEmail)) {
+        message.status = 'cancelled';
+        message.failureReason = 'recipient is on the suppression list';
+        await message.save();
+
+        const suppressedLead = leadMap.get(String(message.leadId));
+
+        if (suppressedLead && suppressedLead.status !== 'do_not_contact') {
+          await applyStatus(suppressedLead, 'do_not_contact', 'suppressed at export');
+          await suppressedLead.save();
+        }
+
+        continue;
+      }
+
+      message.status = 'approved';
+      message.approvedAt = new Date();
+      message.approvedBy = new Types.ObjectId(ownerId);
+      await message.save();
+
+      const lead = leadMap.get(String(message.leadId));
+
+      // Records that outreach happened now, even though the actual send is
+      // external — this is what keeps reply detection and the funnel's
+      // "contacted" stage meaningful.
+      if (lead && lead.status === 'drafting') {
+        lead.sequenceStep += 1;
+        lead.lastContactedAt = new Date();
+        await applyStatus(lead, 'contacted', 'exported for outreach');
+        await lead.save();
+      }
+
+      exported.push(toExportedLead(message, lead ?? null, campaignMap.get(String(message.campaignId))));
+    }
+
+    return exported.sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
   },
 };

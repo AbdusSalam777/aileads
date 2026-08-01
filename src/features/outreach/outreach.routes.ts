@@ -74,6 +74,17 @@ outreachRouter.get(
   }),
 );
 
+// The one-button flow: exports every current draft AND marks each one done in
+// the same request — no per-lead approval click. POST because, unlike the GET
+// above, this mutates every draft it touches.
+outreachRouter.post(
+  '/export',
+  asyncHandler(async (req, res) => {
+    const data = await outreachService.exportDraftsAndClear(requireUserId(req));
+    sendSuccess(res, { message: `Exported and cleared ${data.length} lead(s)`, data });
+  }),
+);
+
 outreachRouter.get(
   '/',
   validateRequest(listSchema),
@@ -97,15 +108,6 @@ outreachRouter.patch(
   asyncHandler(async (req, res) => {
     const message = await outreachService.update(req.params.id, requireUserId(req), req.body);
     sendSuccess(res, { message: 'Draft updated', data: message });
-  }),
-);
-
-outreachRouter.post(
-  '/:id/approve',
-  validateRequest(idSchema),
-  asyncHandler(async (req, res) => {
-    const message = await outreachService.approve(req.params.id, requireUserId(req));
-    sendSuccess(res, { message: 'Approved for export', data: message });
   }),
 );
 
