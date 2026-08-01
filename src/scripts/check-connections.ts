@@ -1,16 +1,15 @@
 /**
- * Verifies the three external credentials without sending anything and without
- * printing any secret value.
+ * Verifies external credentials without printing any secret value.
  *
  *   npm run check --workspace backend
  *
- * Safe to run at any time: it makes one tiny AI call, opens and closes an SMTP
- * handshake, and logs in to IMAP read-only.
+ * Safe to run at any time: it makes one tiny AI call and logs in to IMAP
+ * read-only. This app has no SMTP sending capability to check any more —
+ * exported leads are sent from wherever the operator pastes them.
  */
 import { ImapFlow } from 'imapflow';
 import { env } from '../config/env.js';
 import { groqProvider } from '../features/ai/groq.provider.js';
-import { verifyTransport } from '../features/email/mailer.js';
 
 type Check = { label: string; ok: boolean; detail: string };
 
@@ -49,23 +48,9 @@ const checkAi = async () => {
   }
 };
 
-const checkSmtp = async () => {
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
-    record('SMTP', false, 'SMTP_USER or SMTP_PASSWORD is empty in backend/.env');
-    return;
-  }
-
-  const result = await verifyTransport();
-  record(
-    'SMTP',
-    result.ok,
-    result.ok ? `ready to send as ${env.SMTP_USER}` : (result.error ?? 'handshake failed'),
-  );
-};
-
 const checkImap = async () => {
   if (!env.IMAP_ENABLED) {
-    record('IMAP', false, 'IMAP_ENABLED is false — follow-ups stay disabled until this is true');
+    record('IMAP', false, 'IMAP_ENABLED is false — replies to exported leads will not be tracked');
     return;
   }
 
@@ -94,17 +79,16 @@ const checkImap = async () => {
 };
 
 const run = async () => {
-  console.log('Checking external connections. No email is sent.\n');
+  console.log('Checking external connections.\n');
 
   await checkAi();
-  await checkSmtp();
   await checkImap();
 
   const failed = results.filter((result) => !result.ok);
   console.log('');
 
   if (failed.length === 0) {
-    console.log('All connections working. You can switch off dry run when ready.');
+    console.log('All connections working.');
     return;
   }
 

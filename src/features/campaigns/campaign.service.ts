@@ -1,5 +1,4 @@
 import { Types } from 'mongoose';
-import { env } from '../../config/env.js';
 import { ApiError } from '../../shared/api-error.js';
 import { getPagination } from '../../shared/pagination.js';
 import { CampaignModel, type CampaignDocument } from './campaign.model.js';
@@ -9,21 +8,11 @@ import type {
   UpdateCampaignInput,
 } from './campaign.schemas.js';
 
-const defaultSending = () => ({
-  dailyCap: env.EMAIL_DAILY_CAP,
-  minSpacingMinutes: env.EMAIL_MIN_SPACING_MINUTES,
-  maxSpacingMinutes: env.EMAIL_MAX_SPACING_MINUTES,
-  startHour: env.EMAIL_SEND_START_HOUR,
-  endHour: env.EMAIL_SEND_END_HOUR,
-  days: env.EMAIL_SEND_DAYS,
-  timezone: env.TIMEZONE,
-});
-
 const assertReadyToActivate = (campaign: CampaignDocument) => {
   if (!campaign.sender.physicalAddress) {
     throw new ApiError(
       422,
-      'A sender physical address is legally required before a campaign can send outreach',
+      'A sender physical address is legally required — it appears in every exported email',
       'SENDER_ADDRESS_REQUIRED',
     );
   }
@@ -72,12 +61,13 @@ export const campaignService = {
   },
 
   async create(ownerId: string, input: CreateCampaignInput) {
+    // sending/followUp are no longer meaningful — this app has no send
+    // capability — but the fields stay on the schema for older documents, so
+    // any values a caller supplies are still accepted rather than rejected.
     return CampaignModel.create({
       ...input,
       ownerId: new Types.ObjectId(ownerId),
       status: 'draft',
-      sending: { ...defaultSending(), ...input.sending },
-      followUp: { enabled: true, maxSteps: 2, delayDays: [4, 7], ...input.followUp },
     });
   },
 

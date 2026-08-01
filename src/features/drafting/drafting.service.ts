@@ -98,7 +98,6 @@ export const draftForLead = async (
     aiModel: model,
     validationIssues: issues.map((issue) => `${issue.severity}: ${issue.message}`),
     unsubscribeToken: createUnsubscribeToken({ email: lead.contactEmail, leadId: lead.id }),
-    dryRun: env.EMAIL_DRY_RUN,
   });
 
   return { ok: true };

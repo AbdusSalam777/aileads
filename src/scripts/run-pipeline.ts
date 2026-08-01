@@ -5,9 +5,9 @@ import { discoveryService } from '../features/discovery/discovery.service.js';
 import { draftingService } from '../features/drafting/drafting.service.js';
 import { enrichmentService } from '../features/enrichment/enrichment.service.js';
 import { LeadModel } from '../features/leads/lead.model.js';
+import { unsubscribeUrlFor } from '../features/compliance/unsubscribe-token.js';
 import { buildMessageText } from '../features/email/message-builder.js';
 import { OutreachMessageModel } from '../features/outreach/outreach-message.model.js';
-import { unsubscribeUrlFor } from '../features/outreach/sender.service.js';
 import { qualificationService } from '../features/qualification/qualification.service.js';
 
 const heading = (text: string) => {
@@ -20,17 +20,11 @@ const run = async () => {
     PIPELINE_DRY_RUN: env.PIPELINE_DRY_RUN,
     DISCOVERY_DRY_RUN: env.DISCOVERY_DRY_RUN,
     AI_DRY_RUN: env.AI_DRY_RUN,
-    EMAIL_DRY_RUN: env.EMAIL_DRY_RUN,
-    OUTREACH_ENABLED: env.OUTREACH_ENABLED,
     AI_PROVIDER: env.AI_PROVIDER,
   });
 
-  if (!env.EMAIL_DRY_RUN) {
-    console.error('\nRefusing to run: EMAIL_DRY_RUN is false, so this could send real email.');
-    console.error('Set PIPELINE_DRY_RUN=true (or EMAIL_DRY_RUN=true) before running this script.');
-    process.exit(1);
-  }
-
+  // Nothing this script does can send email — that capability was removed
+  // from the app entirely, so there is no flag left to refuse to run under.
   await connectMongo();
 
   const campaign = await CampaignModel.findOne({ status: 'active' });
@@ -83,8 +77,6 @@ const run = async () => {
     console.log('-'.repeat(72));
     console.log(
       buildMessageText({
-        toEmail: draft.toEmail,
-        subject: draft.subject,
         body: draft.body,
         sender: campaign.sender,
         unsubscribeUrl: unsubscribeUrlFor(draft.unsubscribeToken),
@@ -92,8 +84,8 @@ const run = async () => {
     );
   }
 
-  heading('DONE — no email was sent');
-  console.log('Nothing left this machine. Approve drafts in the UI at /emails.');
+  heading('DONE');
+  console.log('Approve drafts in the UI at /emails, then use "Export leads (JSON)" to send them.');
 
   await disconnectMongo();
 };

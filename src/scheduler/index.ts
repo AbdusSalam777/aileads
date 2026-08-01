@@ -6,8 +6,6 @@ import { draftingService } from '../features/drafting/drafting.service.js';
 import { inboxService } from '../features/email/inbox.service.js';
 import { enrichmentService } from '../features/enrichment/enrichment.service.js';
 import type { JobName } from '../features/jobs/job-run.model.js';
-import { followUpService } from '../features/outreach/follow-up.service.js';
-import { senderService } from '../features/outreach/sender.service.js';
 import { qualificationService } from '../features/qualification/qualification.service.js';
 import { runJob, type JobStats } from './run-job.js';
 
@@ -44,22 +42,10 @@ export const jobDefinitions: JobDefinition[] = [
     run: () => draftingService.runDrafting() as Promise<JobStats>,
   },
   {
-    name: 'send',
-    cron: '*/5 * * * *',
-    description: 'Send at most one approved message, subject to every gate',
-    run: () => senderService.runSendCycle() as Promise<JobStats>,
-  },
-  {
     name: 'reply_poll',
     cron: `*/${env.IMAP_POLL_MINUTES} * * * *`,
-    description: 'Check the inbox for replies and bounces',
+    description: 'Check the inbox for replies, so exported leads that answer are tracked',
     run: () => inboxService.runReplyPoll() as Promise<JobStats>,
-  },
-  {
-    name: 'follow_up_scan',
-    cron: '30 7 * * *',
-    description: 'Queue follow-ups for leads that never replied',
-    run: () => followUpService.runFollowUpScan() as Promise<JobStats>,
   },
 ];
 

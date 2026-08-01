@@ -18,12 +18,23 @@ const startOfDayUtc = (daysAgo: number) => {
   return date;
 };
 
+/**
+ * The app has no send capability of its own — 'approved' is where a message's
+ * lifecycle here ends, marking that the operator took it to export and send
+ * elsewhere. 'sent' is included too so messages from before that change still
+ * count towards the totals.
+ */
+const OUTREACH_DONE_STATUSES = ['approved', 'sent'] as const;
+
+const outreachTimestamp = (message: { sentAt?: Date; approvedAt?: Date }) =>
+  message.sentAt ?? message.approvedAt;
+
 export const analyticsService = {
   async overview(ownerId: string) {
     const campaignIds = await ownedCampaignIds(ownerId);
     const scope = { campaignId: { $in: campaignIds } };
 
-    const [statusRows, totalLeads, pendingApproval, approved, sentTotal, replied] =
+    const [statusRows, totalLeads, pendingApproval, approved, outreachTotal, replied] =
       await Promise.all([
         LeadModel.aggregate<{ _id: LeadStatus; count: number }>([
           { $match: scope },
@@ -32,7 +43,7 @@ export const analyticsService = {
         LeadModel.countDocuments(scope),
         OutreachMessageModel.countDocuments({ ...scope, status: 'draft' }),
         OutreachMessageModel.countDocuments({ ...scope, status: 'approved' }),
-        OutreachMessageModel.countDocuments({ ...scope, status: 'sent' }),
+        OutreachMessageModel.countDocuments({ ...scope, status: { $in: OUTREACH_DONE_STATUSES } }),
         LeadModel.countDocuments({ ...scope, status: 'replied' }),
       ]);
 
@@ -46,10 +57,10 @@ export const analyticsService = {
     }
 
     const weekAgo = startOfDayUtc(7);
-    const sentThisWeek = await OutreachMessageModel.countDocuments({
+    const outreachThisWeek = await OutreachMessageModel.countDocuments({
       ...scope,
-      status: 'sent',
-      sentAt: { $gte: weekAgo },
+      status: { $in: OUTREACH_DONE_STATUSES },
+      $or: [{ sentAt: { $gte: weekAgo } }, { approvedAt: { $gte: weekAgo } }],
     });
 
     const contacted = byStatus.contacted + byStatus.replied + byStatus.won + byStatus.lost;
@@ -59,10 +70,10 @@ export const analyticsService = {
       byStatus,
       pendingApproval,
       approved,
-      sentTotal,
-      sentThisWeek,
+      sentTotal: outreachTotal,
+      sentThisWeek: outreachThisWeek,
       replied,
-      replyRate: sentTotal > 0 ? Math.round((replied / sentTotal) * 1000) / 10 : 0,
+      replyRate: outreachTotal > 0 ? Math.round((replied / outreachTotal) * 1000) / 10 : 0,
       funnel: [
         { stage: 'Discovered', count: totalLeads },
         {
@@ -75,7 +86,7 @@ export const analyticsService = {
             contacted,
         },
         { stage: 'Qualified', count: byStatus.qualified + byStatus.drafting + contacted },
-        { stage: 'Contacted', count: contacted },
+        { stage: 'Approved for outreach', count: contacted },
         { stage: 'Replied', count: byStatus.replied + byStatus.won + byStatus.lost },
         { stage: 'Won', count: byStatus.won },
       ],
@@ -86,23 +97,25 @@ export const analyticsService = {
     const campaignIds = await ownedCampaignIds(ownerId);
     const since = startOfDayUtc(days - 1);
 
-    const rows = await OutreachMessageModel.aggregate<{ _id: string; count: number }>([
-      {
-        $match: {
-          campaignId: { $in: campaignIds },
-          status: 'sent',
-          sentAt: { $gte: since },
-        },
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$sentAt' } },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
+    const messages = await OutreachMessageModel.find({
+      campaignId: { $in: campaignIds },
+      status: { $in: OUTREACH_DONE_STATUSES },
+    })
+      .select('sentAt approvedAt')
+      .lean();
 
-    const counts = new Map(rows.map((row) => [row._id, row.count]));
+    const counts = new Map<string, number>();
+
+    for (const message of messages) {
+      const at = outreachTimestamp(message);
+
+      if (!at || at < since) {
+        continue;
+      }
+
+      const key = at.toISOString().slice(0, 10);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
 
     // Emit a dense series so the chart has no gaps.
     return Array.from({ length: days }, (_, index) => {

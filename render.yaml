@@ -1,10 +1,14 @@
 # Render blueprint for the backend API.
 #
+# This app has no SMTP sending of its own: leads are exported as JSON with a
+# ready-to-send subject/body and sent from wherever the operator pastes them.
+# Render only needs to serve the API, host unsubscribe links, and (optionally)
+# poll IMAP for replies.
+#
 # The free plan sleeps after ~15 minutes without an inbound request, and a
-# sleeping service runs no cron jobs. Point a free external pinger (cron-job.org,
-# UptimeRobot) at /api/v1/health every 10 minutes to keep the scheduler alive.
-# Nothing is lost during downtime — approved mail is sent once the service wakes
-# and the IMAP poll looks back 14 days — but sends are delayed.
+# sleeping service runs no cron jobs — point a free external pinger
+# (cron-job.org, UptimeRobot) at /api/v1/health every 10 minutes if discovery
+# needs to keep running unattended.
 services:
   - type: web
     name: ai-leads-api
@@ -38,10 +42,8 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
+      # IMAP is optional and reply-detection only — set these two if you want
+      # replies to exported leads tracked in Analytics.
       - key: IMAP_USER
         sync: false
       - key: IMAP_PASSWORD

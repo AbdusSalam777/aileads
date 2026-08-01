@@ -50,9 +50,7 @@ jobsRouter.get(
         schedulerEnabled: env.SCHEDULER_ENABLED,
         schedulerRunning: isSchedulerRunning(),
         timezone: env.TIMEZONE,
-        outreachEnabled: env.OUTREACH_ENABLED,
         dryRun: {
-          email: env.EMAIL_DRY_RUN,
           ai: env.AI_DRY_RUN,
           discovery: env.DISCOVERY_DRY_RUN,
         },

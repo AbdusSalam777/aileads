@@ -1,24 +1,18 @@
 import { Types, type FilterQuery } from 'mongoose';
-import { env } from '../../config/env.js';
 import { ApiError } from '../../shared/api-error.js';
 import { getPagination } from '../../shared/pagination.js';
-import { CampaignModel } from '../campaigns/campaign.model.js';
+import { CampaignModel, type CampaignDocument } from '../campaigns/campaign.model.js';
 import { suppressionService } from '../compliance/suppression.service.js';
+import { unsubscribeUrlFor } from '../compliance/unsubscribe-token.js';
 import { buildMessageText } from '../email/message-builder.js';
-import { LeadModel } from '../leads/lead.model.js';
+import { LeadModel, type LeadDocument } from '../leads/lead.model.js';
 import { applyStatus } from '../leads/lead.service.js';
 import {
   OutreachMessageModel,
   type MessageStatus,
   type OutreachMessage,
+  type OutreachMessageDocument,
 } from './outreach-message.model.js';
-import {
-  canSendNow,
-  computeNextSendAt,
-  localDayKey,
-  toSendWindowConfig,
-} from './send-window.js';
-import { unsubscribeUrlFor } from './sender.service.js';
 
 const ownedCampaignIds = async (ownerId: string) => {
   const campaigns = await CampaignModel.find({ ownerId: new Types.ObjectId(ownerId) })
@@ -41,6 +35,48 @@ const findOwnedMessage = async (id: string, ownerId: string) => {
 
   return message;
 };
+
+/** Every field a message needs when it is exported for outreach elsewhere. */
+export type ExportedLead = {
+  leadId: string;
+  name: string;
+  email: string;
+  website: string | null;
+  source: string | null;
+  aiScore: number | null;
+  subject: string;
+  body: string;
+  whyThisLead: string[];
+  hooks: string[];
+  status: MessageStatus;
+};
+
+const toExportedLead = (
+  message: OutreachMessageDocument,
+  lead: LeadDocument | null,
+  campaign: CampaignDocument | undefined,
+): ExportedLead => ({
+  leadId: String(message.leadId),
+  name: lead?.company ?? lead?.name ?? '',
+  email: message.toEmail,
+  website: lead?.websiteUrl ?? null,
+  source: lead?.source ?? null,
+  aiScore: lead?.ai?.score ?? null,
+  subject: message.subject,
+  // Full rendered message — signature, postal address and unsubscribe link
+  // included — so the compliance footer travels with the copy wherever it is
+  // pasted, not just what shipped from this app.
+  body: campaign
+    ? buildMessageText({
+        body: message.body,
+        sender: campaign.sender,
+        unsubscribeUrl: unsubscribeUrlFor(message.unsubscribeToken),
+      })
+    : message.body,
+  whyThisLead: lead?.ai?.reasons ?? [],
+  hooks: lead?.ai?.personalizationHooks ?? [],
+  status: message.status,
+});
 
 export const outreachService = {
   async list(
@@ -72,11 +108,9 @@ export const outreachService = {
     const lead = await LeadModel.findById(message.leadId).lean();
     const campaign = await CampaignModel.findById(message.campaignId).lean();
 
-    // Show the reviewer exactly what will be sent, footer included.
+    // Show the reviewer exactly what will go out, footer included.
     const preview = campaign
       ? buildMessageText({
-          toEmail: message.toEmail,
-          subject: message.subject,
           body: message.body,
           sender: campaign.sender,
           unsubscribeUrl: unsubscribeUrlFor(message.unsubscribeToken),
@@ -100,6 +134,11 @@ export const outreachService = {
     return message;
   },
 
+  /**
+   * Marks a draft ready for outreach. There is no send queue any more — this
+   * is purely curation, so the lead can be told apart from the ones still
+   * awaiting a decision when it is exported.
+   */
   async approve(id: string, ownerId: string) {
     const message = await findOwnedMessage(id, ownerId);
 
@@ -111,28 +150,22 @@ export const outreachService = {
       throw new ApiError(409, 'Recipient is on the suppression list', 'RECIPIENT_SUPPRESSED');
     }
 
-    const campaign = await CampaignModel.findById(message.campaignId);
-
-    if (!campaign) {
-      throw new ApiError(404, 'Campaign not found', 'CAMPAIGN_NOT_FOUND');
-    }
-
-    const config = toSendWindowConfig(campaign.sending);
-    const lastApproved = await OutreachMessageModel.findOne({
-      campaignId: campaign._id,
-      status: 'approved',
-    })
-      .sort({ scheduledFor: -1 })
-      .select('scheduledFor')
-      .lean();
-
-    const anchor = lastApproved?.scheduledFor ?? new Date();
-
     message.status = 'approved';
     message.approvedAt = new Date();
     message.approvedBy = new Types.ObjectId(ownerId);
-    message.scheduledFor = computeNextSendAt(anchor, config);
     await message.save();
+
+    // Records the operator's intent to reach out now, even though the actual
+    // send happens outside this app — this is what keeps reply detection and
+    // the "contacted" stage of the funnel meaningful.
+    const lead = await LeadModel.findById(message.leadId);
+
+    if (lead && lead.status === 'drafting') {
+      lead.sequenceStep += 1;
+      lead.lastContactedAt = new Date();
+      await applyStatus(lead, 'contacted', 'approved for export');
+      await lead.save();
+    }
 
     return message;
   },
@@ -158,63 +191,46 @@ export const outreachService = {
     return message;
   },
 
-  /** Powers the send-queue panel: what the operator needs to trust the system. */
-  async queueStatus(ownerId: string) {
+  /** Counts shown above the Outbox: what still needs a decision, what is ready. */
+  async summary(ownerId: string) {
     const campaignIds = await ownedCampaignIds(ownerId);
-    const campaigns = await CampaignModel.find({ _id: { $in: campaignIds } }).lean();
-    const primary = campaigns.find((c) => c.status === 'active') ?? campaigns[0];
 
-    const timezone = primary?.sending.timezone ?? env.TIMEZONE;
-    const today = localDayKey(new Date(), timezone);
-
-    const since = new Date();
-    since.setUTCHours(since.getUTCHours() - 48);
-
-    const recentSent = await OutreachMessageModel.find({
-      campaignId: { $in: campaignIds },
-      status: 'sent',
-      sentAt: { $gte: since },
-    })
-      .select('sentAt')
-      .lean();
-
-    const sentToday = recentSent.filter(
-      (message) => message.sentAt && localDayKey(message.sentAt, timezone) === today,
-    ).length;
-
-    const [pendingApproval, approved, nextUp] = await Promise.all([
+    const [pendingApproval, approved] = await Promise.all([
       OutreachMessageModel.countDocuments({ campaignId: { $in: campaignIds }, status: 'draft' }),
       OutreachMessageModel.countDocuments({ campaignId: { $in: campaignIds }, status: 'approved' }),
-      OutreachMessageModel.findOne({ campaignId: { $in: campaignIds }, status: 'approved' })
-        .sort({ scheduledFor: 1 })
-        .select('scheduledFor')
-        .lean(),
     ]);
 
-    const dailyCap = Math.min(primary?.sending.dailyCap ?? env.EMAIL_DAILY_CAP, env.EMAIL_DAILY_CAP);
+    return { pendingApproval, approved };
+  },
 
-    const decision = primary
-      ? canSendNow({
-          now: new Date(),
-          config: toSendWindowConfig(primary.sending, env.EMAIL_DAILY_CAP),
-          sentToday,
-          lastSentAt: recentSent.at(-1)?.sentAt ?? null,
-          outreachEnabled: env.OUTREACH_ENABLED && primary.status === 'active',
-        })
-      : { allowed: false as const, code: 'OUTREACH_DISABLED' as const, reason: 'No campaign yet' };
+  /**
+   * Everything needed to actually reach out, in one JSON payload: email, name,
+   * subject, the full compliant body, why the lead was picked, and the hooks
+   * used to personalise it. Sending happens outside this app.
+   */
+  async exportLeads(ownerId: string, statuses: MessageStatus[] = ['draft', 'approved']) {
+    const campaignIds = await ownedCampaignIds(ownerId);
+    const campaigns = await CampaignModel.find({ _id: { $in: campaignIds } });
+    const campaignMap = new Map(campaigns.map((campaign) => [String(campaign._id), campaign]));
 
-    return {
-      sentToday,
-      dailyCap,
-      envDailyCap: env.EMAIL_DAILY_CAP,
-      pendingApproval,
-      approved,
-      nextScheduledFor: nextUp?.scheduledFor ?? null,
-      timezone,
-      outreachEnabled: env.OUTREACH_ENABLED,
-      dryRun: env.EMAIL_DRY_RUN,
-      canSendNow: decision.allowed,
-      blockedReason: decision.allowed ? undefined : decision.reason,
-    };
+    const messages = await OutreachMessageModel.find({
+      campaignId: { $in: campaignIds },
+      status: { $in: statuses },
+    });
+
+    const leads = await LeadModel.find({
+      _id: { $in: messages.map((message) => message.leadId) },
+    });
+    const leadMap = new Map(leads.map((lead) => [String(lead._id), lead]));
+
+    return messages
+      .map((message) =>
+        toExportedLead(
+          message,
+          leadMap.get(String(message.leadId)) ?? null,
+          campaignMap.get(String(message.campaignId)),
+        ),
+      )
+      .sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
   },
 };

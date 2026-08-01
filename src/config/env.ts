@@ -57,14 +57,15 @@ const envSchema = z.object({
   SCHEDULER_ENABLED: booleanFlag('false'),
   TIMEZONE: z.string().default('UTC'),
 
-  // --- Dry run (PIPELINE_DRY_RUN is a master switch over the other three) ---
+  // --- Dry run (PIPELINE_DRY_RUN is a master switch over the other two) ---
   PIPELINE_DRY_RUN: booleanFlag('false'),
-  EMAIL_DRY_RUN: booleanFlag('true'),
   AI_DRY_RUN: booleanFlag('false'),
   DISCOVERY_DRY_RUN: booleanFlag('false'),
 
   // --- Discovery (shared) ---
-  DISCOVERY_DAILY_LEAD_TARGET: z.coerce.number().int().positive().max(500).default(40),
+  // There is no send capacity to pace against any more, so this is bounded
+  // only by what a polite daily sweep of Overpass can return — see osm.source.ts.
+  DISCOVERY_DAILY_LEAD_TARGET: z.coerce.number().int().positive().max(500).default(300),
   INTENT_SOURCES: csvList(['hn', 'remoteok', 'wwr', 'reddit'] as const, 'hn,remoteok,wwr'),
   INTENT_MAX_AGE_HOURS: z.coerce.number().int().positive().default(72),
   HTTP_CONTACT_EMAIL: z.string().optional(),
@@ -78,21 +79,26 @@ const envSchema = z.object({
   OVERPASS_MIN_INTERVAL_MS: z.coerce.number().int().positive().default(10_000),
   OVERPASS_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
   OVERPASS_CACHE_TTL_HOURS: z.coerce.number().int().positive().default(24),
-  OVERPASS_MAX_RESULTS: z.coerce.number().int().positive().max(1000).default(200),
+  // Raised alongside the daily target so a bigger city's results are not cut
+  // off mid-response — request count stays bounded by the number of areas
+  // configured, not by this number.
+  OVERPASS_MAX_RESULTS: z.coerce.number().int().positive().max(1000).default(400),
 
   // --- Scraper ---
   SCRAPE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   SCRAPE_MAX_BYTES: z.coerce.number().int().positive().default(500_000),
-  SCRAPE_MAX_PAGES_PER_SITE: z.coerce.number().int().positive().max(10).default(3),
+  // More contact/about pages visited per site directly raises the share of
+  // leads that come back with a usable email address.
+  SCRAPE_MAX_PAGES_PER_SITE: z.coerce.number().int().positive().max(10).default(5),
   SCRAPE_MIN_INTERVAL_MS: z.coerce.number().int().positive().default(3000),
   SCRAPE_USER_AGENT: z.string().default('ai-leads-outreach/0.1'),
-  ENRICH_BATCH_SIZE: z.coerce.number().int().positive().max(50).default(10),
+  ENRICH_BATCH_SIZE: z.coerce.number().int().positive().max(50).default(20),
 
   // --- AI ---
   AI_PROVIDER: z.enum(['groq', 'ollama', 'stub']).default('groq'),
   AI_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(3000),
   AI_MAX_RETRIES: z.coerce.number().int().positive().max(10).default(3),
-  AI_BATCH_SIZE: z.coerce.number().int().positive().max(50).default(5),
+  AI_BATCH_SIZE: z.coerce.number().int().positive().max(50).default(10),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   GROQ_API_KEY: z.string().optional(),
   GROQ_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
@@ -100,20 +106,7 @@ const envSchema = z.object({
   OLLAMA_BASE_URL: z.string().url().default('http://127.0.0.1:11434'),
   OLLAMA_MODEL: z.string().default('llama3.1:8b'),
 
-  // --- Email / SMTP ---
-  OUTREACH_ENABLED: booleanFlag('false'),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASSWORD: z.string().optional(),
-  SMTP_HOST: z.string().default('smtp.gmail.com'),
-  SMTP_PORT: z.coerce.number().int().positive().default(465),
-  EMAIL_DAILY_CAP: z.coerce.number().int().positive().max(50).default(8),
-  EMAIL_MIN_SPACING_MINUTES: z.coerce.number().int().positive().default(45),
-  EMAIL_MAX_SPACING_MINUTES: z.coerce.number().int().positive().default(180),
-  EMAIL_SEND_START_HOUR: z.coerce.number().int().min(0).max(23).default(9),
-  EMAIL_SEND_END_HOUR: z.coerce.number().int().min(1).max(24).default(17),
-  EMAIL_SEND_DAYS: csvList(['0', '1', '2', '3', '4', '5', '6'] as const, '1,2,3,4,5'),
-
-  // --- IMAP (reply + bounce detection) ---
+  // --- IMAP (reply detection only; this app never sends email itself) ---
   IMAP_ENABLED: booleanFlag('false'),
   IMAP_HOST: z.string().default('imap.gmail.com'),
   IMAP_PORT: z.coerce.number().int().positive().default(993),
@@ -127,23 +120,6 @@ const envSchema = z.object({
   SENDER_PHYSICAL_ADDRESS: z.string().optional(),
 }).superRefine((value, ctx) => {
   const aiDryRun = value.PIPELINE_DRY_RUN || value.AI_DRY_RUN;
-  const emailDryRun = value.PIPELINE_DRY_RUN || value.EMAIL_DRY_RUN;
-
-  if (value.EMAIL_MIN_SPACING_MINUTES > value.EMAIL_MAX_SPACING_MINUTES) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['EMAIL_MIN_SPACING_MINUTES'],
-      message: 'EMAIL_MIN_SPACING_MINUTES cannot exceed EMAIL_MAX_SPACING_MINUTES',
-    });
-  }
-
-  if (value.EMAIL_SEND_START_HOUR >= value.EMAIL_SEND_END_HOUR) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['EMAIL_SEND_START_HOUR'],
-      message: 'EMAIL_SEND_START_HOUR must be before EMAIL_SEND_END_HOUR',
-    });
-  }
 
   if (value.AI_PROVIDER === 'groq' && !aiDryRun && !value.GROQ_API_KEY) {
     ctx.addIssue({
@@ -161,14 +137,6 @@ const envSchema = z.object({
     });
   }
 
-  if (value.OUTREACH_ENABLED && !emailDryRun && !(value.SMTP_USER && value.SMTP_PASSWORD)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['SMTP_USER'],
-      message: 'SMTP_USER and SMTP_PASSWORD are required when outreach is enabled and not a dry run',
-    });
-  }
-
   if (value.IMAP_ENABLED && !(value.IMAP_USER && value.IMAP_PASSWORD)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -181,30 +149,31 @@ const envSchema = z.object({
     return;
   }
 
-  if (value.OUTREACH_ENABLED && !emailDryRun) {
-    if (!value.SENDER_PHYSICAL_ADDRESS) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['SENDER_PHYSICAL_ADDRESS'],
-        message: 'SENDER_PHYSICAL_ADDRESS is legally required before sending outreach in production',
-      });
-    }
+  // Every exported email still carries this app's unsubscribe link and postal
+  // address, whatever tool actually sends it — so these stay mandatory in
+  // production regardless of how outreach happens.
+  if (!value.SENDER_PHYSICAL_ADDRESS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SENDER_PHYSICAL_ADDRESS'],
+      message: 'SENDER_PHYSICAL_ADDRESS is legally required — it appears in every exported email',
+    });
+  }
 
-    if (value.UNSUBSCRIBE_SECRET === devUnsubscribeSecret) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['UNSUBSCRIBE_SECRET'],
-        message: 'UNSUBSCRIBE_SECRET must be changed before sending outreach in production',
-      });
-    }
+  if (value.UNSUBSCRIBE_SECRET === devUnsubscribeSecret) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['UNSUBSCRIBE_SECRET'],
+      message: 'UNSUBSCRIBE_SECRET must be changed before exporting real outreach in production',
+    });
+  }
 
-    if (value.PUBLIC_BASE_URL.includes('localhost')) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['PUBLIC_BASE_URL'],
-        message: 'PUBLIC_BASE_URL must be publicly reachable so unsubscribe links work',
-      });
-    }
+  if (value.PUBLIC_BASE_URL.includes('localhost')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['PUBLIC_BASE_URL'],
+      message: 'PUBLIC_BASE_URL must be publicly reachable so unsubscribe links work',
+    });
   }
 
   if (!value.MONGODB_URI) {
@@ -244,10 +213,8 @@ const parsed = parsedEnv.data;
 // PIPELINE_DRY_RUN is a master switch: it forces every individual dry-run flag on.
 export const env = {
   ...parsed,
-  EMAIL_DRY_RUN: parsed.PIPELINE_DRY_RUN || parsed.EMAIL_DRY_RUN,
   AI_DRY_RUN: parsed.PIPELINE_DRY_RUN || parsed.AI_DRY_RUN,
   DISCOVERY_DRY_RUN: parsed.PIPELINE_DRY_RUN || parsed.DISCOVERY_DRY_RUN,
-  EMAIL_SEND_DAYS: parsed.EMAIL_SEND_DAYS.map(Number),
 };
 
 export const userAgent = parsed.HTTP_CONTACT_EMAIL

@@ -5,9 +5,7 @@ export const jobNames = [
   'enrichment',
   'qualification',
   'drafting',
-  'send',
   'reply_poll',
-  'follow_up_scan',
 ] as const;
 export type JobName = (typeof jobNames)[number];
 

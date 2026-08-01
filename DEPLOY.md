@@ -54,9 +54,9 @@ Set these in Render → **Environment**. Never commit them.
 | `JWT_REFRESH_SECRET` | random 32+ characters, different from the above |
 | `UNSUBSCRIBE_SECRET` | random 32+ characters, different again |
 
-`PUBLIC_BASE_URL` must be publicly reachable — unsubscribe links in sent mail
-point at it. The app refuses to start with a `localhost` value once outreach is
-enabled.
+`PUBLIC_BASE_URL` must be publicly reachable — every exported email's
+unsubscribe link points at it. The app refuses to start without this in
+production.
 
 **AI**
 
@@ -65,29 +65,30 @@ enabled.
 | `AI_PROVIDER` | `groq` |
 | `GROQ_API_KEY` | your key from console.groq.com |
 
-**Email**
+**IMAP — optional, reply detection only**
+
+This app has no SMTP sending of its own. Leads are exported as JSON with a
+ready-to-send subject and body, and sent from wherever you paste them. Set
+these only if you want replies tracked in Analytics — point them at whatever
+mailbox the outreach actually goes out from.
 
 | Key | Value |
 |---|---|
-| `SMTP_HOST` | `smtp.hostinger.com` |
-| `SMTP_PORT` | `465` |
-| `SMTP_USER` | your mailbox address |
-| `SMTP_PASSWORD` | your mailbox password |
 | `IMAP_ENABLED` | `true` |
 | `IMAP_HOST` | `imap.hostinger.com` |
 | `IMAP_PORT` | `993` |
-| `IMAP_USER` | same as `SMTP_USER` |
-| `IMAP_PASSWORD` | same as `SMTP_PASSWORD` |
+| `IMAP_USER` | your mailbox address |
+| `IMAP_PASSWORD` | your mailbox password |
 
-**Safety flags — deploy with these first**
+**Scheduler**
 
 | Key | Value |
 |---|---|
-| `EMAIL_DRY_RUN` | `true` |
-| `OUTREACH_ENABLED` | `false` |
-| `SCHEDULER_ENABLED` | `false` |
+| `SCHEDULER_ENABLED` | `true` once you want discovery running on a cron |
 
-Verify the deployment works before letting it send anything.
+Discovery, enrichment, qualification and drafting all run automatically once
+this is on. Nothing here can ever send an email — the worst a misconfiguration
+does is find leads you did not want yet.
 
 ---
 
@@ -109,7 +110,7 @@ curl https://YOUR-SERVICE.onrender.com/api/v1/health
 
 Expect `{"success":true,...,"status":"ok"}`.
 
-Render's **Shell** tab can also run the full credential check, which sends no email:
+Render's **Shell** tab can also run the credential check:
 
 ```bash
 npm run check
@@ -119,16 +120,15 @@ npm run check
 
 ## 6. Go live
 
-Once the frontend is deployed and you have approved a draft you are happy with,
-change in Render → Environment:
+Once the frontend is deployed, set in Render → Environment:
 
 ```
-EMAIL_DRY_RUN=false
-OUTREACH_ENABLED=true
 SCHEDULER_ENABLED=true
 ```
 
-Then activate the campaign in Settings. Changing an env var redeploys the service.
+Then activate the campaign in Settings. Discovery starts running on its own —
+open the Outbox, approve the drafts you want, and use **Export leads (JSON)**
+to hand them to whatever you send email with.
 
 ---
 
@@ -179,8 +179,8 @@ Netlify origin. No trailing slash.
 
 **Cannot connect to MongoDB** — Atlas Network Access is missing `0.0.0.0/0`.
 
-**SMTP connection refused** — some hosts block outbound SMTP. Run `npm run check`
-in the Render shell to confirm.
+**IMAP connection refused** — some hosts block outbound connections on that
+port. Run `npm run check` in the Render shell to confirm.
 
 **First request takes ~50 seconds** — the free service was asleep. Expected;
 the keep-alive ping prevents it.

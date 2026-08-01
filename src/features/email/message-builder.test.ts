@@ -1,52 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { buildMessage } from './message-builder.js';
+import { buildMessageText } from './message-builder.js';
 
-describe('From header alignment', () => {
+describe('buildMessageText', () => {
   const base = {
-    toEmail: 'lead@example.com',
-    subject: 'armenian taverna site',
     body: 'Hi,\n\nShort note.',
     unsubscribeUrl: 'https://example.com/u/tok',
+    sender: { name: 'Abdus Salam', email: 'info@abdusdev.com' },
   };
 
-  it('sends from the authenticated mailbox, not the campaign reply address', () => {
-    // Providers reject a From they did not authenticate, and it breaks SPF.
-    const built = buildMessage({
-      ...base,
-      fromAddress: 'info@abdusdev.com',
-      sender: { name: 'Abdus Salam', email: 'abdus@gmail.com' },
-    });
-
-    expect(built.from).toBe('"Abdus Salam" <info@abdusdev.com>');
+  it('always appends the unsubscribe link, regardless of who sends the message', () => {
+    // The system no longer sends email itself — this link is what stays true
+    // no matter where the operator pastes the body afterwards.
+    expect(buildMessageText(base)).toContain(base.unsubscribeUrl);
   });
 
-  it('adds Reply-To only when the campaign wants replies elsewhere', () => {
-    const elsewhere = buildMessage({
+  it('includes the postal address when one is set', () => {
+    const withAddress = buildMessageText({
       ...base,
-      fromAddress: 'info@abdusdev.com',
-      sender: { name: 'Abdus Salam', email: 'abdus@gmail.com' },
+      sender: { ...base.sender, physicalAddress: '5-D Street 7, Lahore' },
     });
 
-    expect(elsewhere.replyTo).toBe('abdus@gmail.com');
+    expect(withAddress).toContain('5-D Street 7, Lahore');
   });
 
-  it('omits Reply-To when the reply address is the sending mailbox', () => {
-    const aligned = buildMessage({
-      ...base,
-      fromAddress: 'info@abdusdev.com',
-      sender: { name: 'Abdus Salam', email: 'info@abdusdev.com' },
-    });
-
-    expect(aligned.replyTo).toBeUndefined();
+  it('omits the address line entirely when none is set', () => {
+    expect(buildMessageText(base)).not.toContain('undefined');
   });
 
-  it('ignores case when comparing the two addresses', () => {
-    const built = buildMessage({
+  it('signs off with name and title when both are present', () => {
+    const signed = buildMessageText({
       ...base,
-      fromAddress: 'info@abdusdev.com',
-      sender: { name: 'Abdus Salam', email: 'INFO@AbdusDev.com' },
+      sender: { ...base.sender, title: 'Freelance developer' },
     });
 
-    expect(built.replyTo).toBeUndefined();
+    expect(signed).toContain('Abdus Salam · Freelance developer');
+  });
+
+  it('preserves the body text unmodified above the footer', () => {
+    const rendered = buildMessageText(base);
+    expect(rendered.startsWith(base.body)).toBe(true);
   });
 });

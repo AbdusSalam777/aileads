@@ -68,3 +68,11 @@ export const verifyUnsubscribeToken = (
     return undefined;
   }
 };
+
+/**
+ * Lives here rather than with a sender: exported email is composed by this
+ * app but transmitted elsewhere, so the unsubscribe link is the one piece of
+ * "sending" infrastructure that still has to be hosted and kept working.
+ */
+export const unsubscribeUrlFor = (token: string) =>
+  `${env.PUBLIC_BASE_URL.replace(/\/$/, '')}/u/${token}`;

@@ -7,7 +7,6 @@ import { asyncHandler } from '../../shared/async-handler.js';
 import { validateRequest } from '../../shared/validate-request.js';
 import { messageStatuses } from './outreach-message.model.js';
 import { outreachService } from './outreach.service.js';
-import { senderService } from './sender.service.js';
 
 const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid id');
 
@@ -35,6 +34,17 @@ const discardSchema = z.object({
   body: z.object({ reason: z.string().max(500).optional() }),
 });
 
+const exportSchema = z.object({
+  query: z.object({
+    // Defaults to "everything not yet discarded" — draft + approved — so a
+    // single export covers whatever has not been ruled out.
+    status: z
+      .string()
+      .optional()
+      .transform((value) => value?.split(',').map((entry) => entry.trim())),
+  }),
+});
+
 export const outreachRouter = Router();
 
 outreachRouter.use(authenticate);
@@ -48,9 +58,19 @@ const requireUserId = (req: { user?: { id: string } }) => {
 };
 
 outreachRouter.get(
-  '/queue-status',
+  '/summary',
   asyncHandler(async (req, res) => {
-    sendSuccess(res, { data: await outreachService.queueStatus(requireUserId(req)) });
+    sendSuccess(res, { data: await outreachService.summary(requireUserId(req)) });
+  }),
+);
+
+outreachRouter.get(
+  '/export',
+  validateRequest(exportSchema),
+  asyncHandler(async (req, res) => {
+    const statuses = req.query.status as (typeof messageStatuses)[number][] | undefined;
+    const data = await outreachService.exportLeads(requireUserId(req), statuses);
+    sendSuccess(res, { message: `Exported ${data.length} lead(s)`, data });
   }),
 );
 
@@ -85,7 +105,7 @@ outreachRouter.post(
   validateRequest(idSchema),
   asyncHandler(async (req, res) => {
     const message = await outreachService.approve(req.params.id, requireUserId(req));
-    sendSuccess(res, { message: 'Approved and queued', data: message });
+    sendSuccess(res, { message: 'Approved for export', data: message });
   }),
 );
 
@@ -99,12 +119,5 @@ outreachRouter.post(
       req.body.reason,
     );
     sendSuccess(res, { message: 'Draft discarded', data: message });
-  }),
-);
-
-outreachRouter.post(
-  '/send-cycle',
-  asyncHandler(async (_req, res) => {
-    sendSuccess(res, { message: 'Send cycle complete', data: await senderService.runSendCycle() });
   }),
 );
