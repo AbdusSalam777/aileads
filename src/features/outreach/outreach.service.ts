@@ -49,6 +49,11 @@ export type ExportedLead = {
   whyThisLead: string[];
   hooks: string[];
   status: MessageStatus;
+  /** Extra context scraped from their site — useful for polishing the copy further, not sent as-is. */
+  phone: string | null;
+  address: string | null;
+  socialLinks: string[];
+  techSignals: string[];
 };
 
 const toExportedLead = (
@@ -76,6 +81,10 @@ const toExportedLead = (
   whyThisLead: lead?.ai?.reasons ?? [],
   hooks: lead?.ai?.personalizationHooks ?? [],
   status: message.status,
+  phone: lead?.site?.phone ?? null,
+  address: lead?.site?.address ?? lead?.location ?? null,
+  socialLinks: lead?.site?.socialLinks ?? [],
+  techSignals: lead?.site?.techSignals ?? [],
 });
 
 export const outreachService = {

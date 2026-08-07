@@ -67,6 +67,9 @@ const enrichOne = async (lead: LeadDocument, stats: EnrichmentStats) => {
         hasHttps: !result.site.techSignals.includes('no-https'),
         hasVideo: result.site.hasVideo,
         copyrightYear: result.site.copyrightYear,
+        phone: result.site.phone,
+        address: result.site.address,
+        socialLinks: result.site.socialLinks,
       };
       lead.enrichmentError = undefined;
 

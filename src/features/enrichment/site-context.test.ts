@@ -116,3 +116,88 @@ describe('extractSiteContext', () => {
     expect(() => extractSiteContext('', 'not a url')).not.toThrow();
   });
 });
+
+describe('extractSiteContext — structured business data', () => {
+  it('reads phone, address and social links from schema.org JSON-LD', () => {
+    const ld = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Restaurant',
+      telephone: '+44 161 234 5678',
+      address: { streetAddress: '12 High St', addressLocality: 'Manchester', postalCode: 'M1 1AA' },
+      sameAs: ['https://www.facebook.com/example', 'https://www.instagram.com/example'],
+    });
+    const html = wrap(`<script type="application/ld+json">${ld}</script>`, '<p>Welcome</p>');
+    const result = extractSiteContext(html, 'https://a.com');
+
+    expect(result.phone).toBe('+44 161 234 5678');
+    expect(result.address).toBe('12 High St, Manchester, M1 1AA');
+    expect(result.socialLinks).toEqual([
+      'https://www.facebook.com/example',
+      'https://www.instagram.com/example',
+    ]);
+  });
+
+  it('finds a business entity nested inside @graph', () => {
+    const ld = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [
+        { '@type': 'WebSite', name: 'Example' },
+        { '@type': 'LocalBusiness', telephone: '0161 999 8888' },
+      ],
+    });
+    const html = wrap(`<script type="application/ld+json">${ld}</script>`, '<p>Hi</p>');
+
+    expect(extractSiteContext(html, 'https://a.com').phone).toBe('0161 999 8888');
+  });
+
+  it('ignores JSON-LD that is not business-typed', () => {
+    const ld = JSON.stringify({ '@type': 'BreadcrumbList', telephone: 'should-not-appear' });
+    const html = wrap(`<script type="application/ld+json">${ld}</script>`, '<p>Hi</p>');
+
+    expect(extractSiteContext(html, 'https://a.com').phone).toBeUndefined();
+  });
+
+  it('does not crash on malformed JSON-LD', () => {
+    const html = wrap('<script type="application/ld+json">{not valid json</script>', '<p>Hi</p>');
+
+    expect(() => extractSiteContext(html, 'https://a.com')).not.toThrow();
+  });
+
+  it('falls back to a tel: link when there is no JSON-LD', () => {
+    const html = wrap('', '<a href="tel:+441619998888">Call us</a>');
+
+    expect(extractSiteContext(html, 'https://a.com').phone).toBe('+441619998888');
+  });
+
+  it('falls back to a plain-text UK phone number as a last resort', () => {
+    const html = wrap('', '<p>Ring us on 0161 999 8888 for bookings.</p>');
+
+    expect(extractSiteContext(html, 'https://a.com').phone).toContain('0161');
+  });
+
+  it('extracts social links directly from anchor tags when there is no JSON-LD', () => {
+    const html = wrap(
+      '',
+      '<a href="https://www.linkedin.com/company/example">LinkedIn</a><a href="https://facebook.com/sharer?u=x">Share</a>',
+    );
+    const result = extractSiteContext(html, 'https://a.com');
+
+    expect(result.socialLinks).toEqual(['https://www.linkedin.com/company/example']);
+  });
+
+  it('keeps only one link per platform', () => {
+    const html = wrap(
+      '',
+      '<a href="https://facebook.com/one">A</a><a href="https://facebook.com/two">B</a>',
+    );
+
+    expect(extractSiteContext(html, 'https://a.com').socialLinks).toHaveLength(1);
+  });
+
+  it('returns undefined phone and an empty social list when the site has neither', () => {
+    const result = extractSiteContext(wrap('', '<p>Nothing here.</p>'), 'https://a.com');
+
+    expect(result.phone).toBeUndefined();
+    expect(result.socialLinks).toEqual([]);
+  });
+});

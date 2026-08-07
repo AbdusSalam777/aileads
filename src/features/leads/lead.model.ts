@@ -55,6 +55,9 @@ export type SiteContext = {
   hasHttps: boolean;
   hasVideo: boolean;
   copyrightYear?: number;
+  phone?: string;
+  address?: string;
+  socialLinks: string[];
 };
 
 export type LeadAiAssessment = {
@@ -162,6 +165,9 @@ const siteSchema = new Schema<SiteContext>(
     hasHttps: { type: Boolean, default: false },
     hasVideo: { type: Boolean, default: false },
     copyrightYear: Number,
+    phone: { type: String, maxlength: 40 },
+    address: { type: String, maxlength: 300 },
+    socialLinks: { type: [String], default: [] },
   },
   { _id: false },
 );
